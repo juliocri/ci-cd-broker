@@ -1,10 +1,10 @@
-host: "kafka"
+host: kafka
 port: 9092
 vendors:
   - vendor:
     name: jenkins
-    host: www.command
-    port: 8080
+    host: http://onmunoz-box.zpn.intel.com
+    port: 9090
     username: admin
     password: admin
   - vendor:

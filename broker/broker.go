@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/optiopay/kafka"
-	//"github.com/optiopay/kafka/proto"
+	"github.intel.com/kubernetes/ci-cd-broker/agent"
 )
 
 // List of CI/CD supported.
@@ -65,7 +66,7 @@ func getBrokerAdress() []string {
 
 	// If host and port are not set in the config file then defaulting
 	if config.Host == "" {
-		config.Host = "localhost"
+		config.Host = "kafka"
 	}
 	if config.Port == 0 {
 		config.Port = 9092
@@ -122,6 +123,21 @@ func verifySupportForVendor(name string) bool {
 	return supported
 }
 
+// getVendorAgent return an agent client accordingly to the vendor name.
+func getVendorAgent(name string) (agent.Agent, error) {
+	var agt agent.Agent
+	var err error
+	switch name {
+	case "jenkins":
+		agt = &agent.Jenkins{}
+
+	default:
+		msg := fmt.Sprintf("Vendor client `%v` is not supported.", name)
+		err = errors.New(msg)
+	}
+	return agt, err
+}
+
 // RunConsumers read messages from kafka in all ci/cd vendors topics and process
 // them.
 func (broker *Broker) RunConsumers() {
@@ -170,7 +186,17 @@ func (broker *Broker) RunConsumers() {
 
 				// TODO : process message and redirect to the proper ci/cd api.
 				// Creating a producer to write in the vendor topic a response.
-				log.Printf("Trying to push a message in topic `%v`", outTopic)
+				agt, err := getVendorAgent(vendor.Name)
+				if err != nil {
+					log.Fatalf("%v", err)
+				}
+
+				err = agt.Connect(agent.Config(vendor))
+				if err != nil {
+					log.Fatalf("%v", err)
+				}
+
+				log.Printf("Trying to write a message in topic `%v`", outTopic)
 				producer := client.Producer(kafka.NewProducerConf())
 				msg.Value = append(msg.Value, "bblb"...)
 				if _, err := producer.Produce(outTopic, partition, msg); err != nil {
