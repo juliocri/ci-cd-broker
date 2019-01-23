@@ -6,7 +6,7 @@ vendors:
     host: http://onmunoz-box.zpn.intel.com
     port: 9090
     username: admin
-    password: admin
+    password: adminadmin
   - vendor:
     name: travis
     host: www.command2

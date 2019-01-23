@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/bndr/gojenkins"
+	"github.com/mitchellh/mapstructure"
 )
 
 // Jenkins alv
@@ -33,4 +34,30 @@ func (j *Jenkins) Connect(conf Config) error {
 
 	j.Client = jenkins
 	return nil
+}
+
+// Create create something in jenkins.
+func (j *Jenkins) Create(req Request) (Response, error) {
+	// TODO implement the real statement.
+	var resp Response
+	var reqBody CreateBodyRequest
+
+	resbody := map[string]interface{}{"msg": "Error"}
+	err := mapstructure.Decode(req.Body, &reqBody)
+	if err != nil {
+		resp = Response{500, resbody}
+		return resp, err
+	}
+
+	log.Printf("Trying to create a jenkins folder.")
+	folder, err := j.Client.CreateFolder(reqBody.Name)
+	if err != nil {
+		resp = Response{500, resbody}
+		return resp, err
+	}
+	log.Printf("Folder created successfuly: %v.", folder)
+
+	resbody = map[string]interface{}{"msg": "Success"}
+	resp = Response{200, resbody}
+	return resp, err
 }

@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,27 +18,18 @@ import (
 var vendors = []string{"jenkins"}
 
 // Default configuration from config file.
-var config *Configuration
+var config *Config
 
 // Broker This struct stores the client reference.
 type Broker struct {
 	Client *kafka.Broker
 }
 
-// Configuration have all the requiered params to run the broker.
-type Configuration struct {
-	Host    string   `yaml:"host"`
-	Port    int      `yaml:"port"`
-	Vendors []Vendor `yaml:"vendors"`
-}
-
-// Vendor CI/CD tool config
-type Vendor struct {
-	Name     string `yaml:"name"`
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+// Config have all the requiered params to run the broker.
+type Config struct {
+	Host    string         `yaml:"host"`
+	Port    int            `yaml:"port"`
+	Vendors []agent.Config `yaml:"vendors"`
 }
 
 // setBrokerConfigFromFile reads a config file and parse the values into
@@ -49,7 +41,7 @@ func setBrokerConfigFromFile() {
 	}
 	log.Printf("YAML config file was read.")
 
-	var conf Configuration
+	var conf Config
 	err = yaml.Unmarshal(yamlFile, &conf)
 	if err != nil {
 		log.Fatalf("%v ", err)
@@ -138,6 +130,38 @@ func getVendorAgent(name string) (agent.Agent, error) {
 	return agt, err
 }
 
+// processMessage returns a json string as a response for a request.
+func processMessage(agt agent.Agent, msg []byte) ([]byte, error) {
+	var req agent.Request
+	var res agent.Response
+	var err error
+	var response []byte
+	// Parse json request to agent.Request type
+	err = json.Unmarshal(msg, &req)
+	if err != nil {
+		return []byte{}, err
+	}
+	// Execute the action, and get an agent.Response
+	switch req.Action {
+	case "create":
+		res, err = agt.Create(req)
+
+	default:
+		msg := fmt.Sprintf("Action `%v` is not implemented in agent.", req.Action)
+		err = errors.New(msg)
+	}
+	if err != nil {
+		return []byte{}, err
+	}
+	// Parse the agent.Response into a json stream.
+	response, err = json.Marshal(res)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return response, err
+}
+
 // RunConsumers read messages from kafka in all ci/cd vendors topics and process
 // them.
 func (broker *Broker) RunConsumers() {
@@ -156,7 +180,7 @@ func (broker *Broker) RunConsumers() {
 		// We start to create the consumers in the current Topic, Creating a go
 		// routine for each topic.
 		wg.Add(1)
-		go func(client kafka.Client, vendor Vendor) {
+		go func(client kafka.Client, vendor agent.Config) {
 			// Consumers are intended to listen forever, but if for some reason or,
 			// error the go rutine ends, we notify the sync group the routine is done.
 			defer wg.Done()
@@ -173,7 +197,26 @@ func (broker *Broker) RunConsumers() {
 				log.Fatalf("Error: %v", err)
 			}
 			log.Printf("Consumer created successfuly for topic `%v`", inTopic)
+
+			// Get the proper vendor client accordingly to the vendor name.
+			agt, err := getVendorAgent(vendor.Name)
+			if err != nil {
+				log.Fatalf("%v", err)
+			}
+
+			// Make a connection with the vendor client.
+			err = agt.Connect(vendor)
+			if err != nil {
+				log.Fatalf("%v", err)
+			}
+
+			log.Printf("Trying to create a producer for topic `%v`", outTopic)
+			producer := client.Producer(kafka.NewProducerConf())
+			log.Printf("Producer created successfuly for topic `%v`", outTopic)
+
+			//Till this point we have the machinery required to read-process-write.
 			// Infinite loop to listen the message queue in the proper topic.
+			log.Printf("Consumer for topic `%v` is listening for messages.", inTopic)
 			for {
 				msg, err := consumer.Consume()
 				if err != nil {
@@ -182,27 +225,23 @@ func (broker *Broker) RunConsumers() {
 					}
 					break
 				}
-				log.Printf("Message in topic `%v` was read.", inTopic)
+				log.Printf("A message in topic `%v` was read.", inTopic)
 
-				// TODO : process message and redirect to the proper ci/cd api.
-				// Creating a producer to write in the vendor topic a response.
-				agt, err := getVendorAgent(vendor.Name)
+				// Build the msg and sending the action request to the proper client.
+				resp, err := processMessage(agt, msg.Value)
 				if err != nil {
-					log.Fatalf("%v", err)
+					// Logging the error, but keep listening the topic.
+					log.Printf("Warning: %v", err)
+					continue
 				}
-
-				err = agt.Connect(agent.Config(vendor))
-				if err != nil {
-					log.Fatalf("%v", err)
-				}
+				msg.Value = resp
 
 				log.Printf("Trying to write a message in topic `%v`", outTopic)
-				producer := client.Producer(kafka.NewProducerConf())
-				msg.Value = append(msg.Value, "bblb"...)
 				if _, err := producer.Produce(outTopic, partition, msg); err != nil {
-					log.Fatalf("%v", err)
+					// Logging the error, but keep listening the topic.
+					log.Printf("Waring: %v", err)
+					continue
 				}
-
 				log.Printf("Message in topic `%v` was written.", outTopic)
 			}
 			// If getting this point then means the consumer ends for some reazon.
