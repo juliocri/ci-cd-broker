@@ -146,6 +146,12 @@ func processMessage(agt agent.Agent, msg []byte) ([]byte, error) {
 	case "create":
 		res, err = agt.Create(req)
 
+	case "delete":
+		res, err = agt.Delete(req)
+
+	case "list":
+		res, err = agt.List(), nil
+
 	default:
 		msg := fmt.Sprintf("Action `%v` is not implemented in agent.", req.Action)
 		err = errors.New(msg)
@@ -159,6 +165,7 @@ func processMessage(agt agent.Agent, msg []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
+	log.Printf("%s", response)
 	return response, err
 }
 
