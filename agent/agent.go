@@ -39,4 +39,6 @@ type Agent interface {
 	Delete(Request) (Response, error)
 	// List returns a list with all projects in the vendor.
 	List() Response
+	// Update modifies a project in the vendor.
+	Update(Request) (Response, error)
 }

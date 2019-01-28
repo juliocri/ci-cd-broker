@@ -7,6 +7,7 @@ import (
 	"github.com/bndr/gojenkins"
 	"github.com/mitchellh/mapstructure"
 	"github.intel.com/kubernetes/ci-cd-broker/agent/jenkins"
+	"github.intel.com/kubernetes/ci-cd-broker/agent/jenkins/configs"
 )
 
 // Jenkins implemenation of agent.
@@ -42,8 +43,14 @@ func (j *Jenkins) Create(req Request) (Response, error) {
 	var response Response
 	var request jenkins.CreateRequest
 	var err error
-
+	// Decoding the request in an specific create request for jenkins.
 	err = mapstructure.Decode(req.Body, &request)
+	if err != nil {
+		response = Response{statusError, map[string]interface{}{"msg": err}}
+		return response, err
+	}
+	// Verifying if all mandatory fields are set in the request.
+	err = request.IsValid()
 	if err != nil {
 		response = Response{statusError, map[string]interface{}{"msg": err}}
 		return response, err
@@ -51,7 +58,7 @@ func (j *Jenkins) Create(req Request) (Response, error) {
 
 	// TODO build the config string with all the parameters recieved by the GUI.
 	log.Printf("Trying to create project `%v`", request.Name)
-	configString := fmt.Sprintf(jenkins.XMLCreate, request.Description)
+	configString := fmt.Sprintf(configs.XMLCreate, request.Description)
 	job, err := j.Client.CreateJob(configString, request.Name)
 	if err != nil {
 		response = Response{statusError, map[string]interface{}{"msg": err}}
@@ -77,10 +84,16 @@ func (j *Jenkins) Create(req Request) (Response, error) {
 // Delete deletes a job in jenkins.
 func (j *Jenkins) Delete(req Request) (Response, error) {
 	var response Response
-	var request jenkins.CreateRequest
+	var request jenkins.DeleteRequest
 	var err error
-
+	// Decoding request into a delete request structure for jenkins.
 	err = mapstructure.Decode(req.Body, &request)
+	if err != nil {
+		response = Response{statusError, map[string]interface{}{"msg": err}}
+		return response, err
+	}
+	// Verifying if all mandatory fields are set in the request.
+	err = request.IsValid()
 	if err != nil {
 		response = Response{statusError, map[string]interface{}{"msg": err}}
 		return response, err
@@ -115,9 +128,49 @@ func (j *Jenkins) List() Response {
 
 	response.Status = statusOk
 	response.Body = map[string]interface{}{
-		"msg":  "Success!",
-		"jobs": list,
+		"msg":      "Success!",
+		"projects": list,
 	}
 
 	return response
+}
+
+// Update updates a pipeline in jenkins.
+func (j *Jenkins) Update(req Request) (Response, error) {
+	var response Response
+	var request jenkins.UpdateRequest
+	var err error
+	// Decoding the request's body into a update request for jenkins.
+	err = mapstructure.Decode(req.Body, &request)
+	if err != nil {
+		response = Response{statusError, map[string]interface{}{"msg": err}}
+		return response, err
+	}
+	// Verifying if all mandatory fields are set in the update request.
+	err = request.IsValid()
+	if err != nil {
+		response = Response{statusError, map[string]interface{}{"msg": err}}
+		return response, err
+	}
+	// First step to update is get the job information.
+	job, err := j.Client.GetJob(request.Name)
+	if err != nil {
+		response = Response{statusError, map[string]interface{}{"msg": err}}
+		return response, err
+	}
+	// TODO update or add a new var for the config string to update, instead of
+	// using the create config string.
+	log.Printf("Trying to update project `%v`.", job.GetName())
+	configString := fmt.Sprintf(configs.XMLCreate, request.Description)
+	err = job.UpdateConfig(configString)
+	if err != nil {
+		response = Response{statusError, map[string]interface{}{"msg": err}}
+		return response, err
+	}
+	log.Printf("Project `%v` has been updated.", job.GetName())
+	// Update complete.
+	response.Status = statusOk
+	response.Body = map[string]interface{}{"msg": "Success!"}
+
+	return response, err
 }

@@ -1,4 +1,4 @@
-package jenkins
+package configs
 
 // TODO add variable replacement for dynamic paramater sent by the GUI.
 

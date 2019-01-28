@@ -32,9 +32,9 @@ type Config struct {
 	Vendors []agent.Config `yaml:"vendors"`
 }
 
-// setBrokerConfigFromFile reads a config file and parse the values into
+// setConfigFromFile reads a config file and parse the values into
 // the structs.
-func setBrokerConfigFromFile() {
+func setConfigFromFile() {
 	yamlFile, err := ioutil.ReadFile("config.yaml")
 	if err != nil {
 		log.Fatalf("%v ", err)
@@ -51,10 +51,10 @@ func setBrokerConfigFromFile() {
 	config = &conf
 }
 
-// getBrokerAdress get host and port from all the sources allowed.
-func getBrokerAdress() []string {
+// getAdress get host and port from all the sources allowed.
+func getAdress() []string {
 	// Fisrt attemp go get adress values from the config.yaml file.
-	setBrokerConfigFromFile()
+	setConfigFromFile()
 
 	// If host and port are not set in the config file then defaulting
 	if config.Host == "" {
@@ -84,10 +84,10 @@ func getBrokerAdress() []string {
 	return []string{address}
 }
 
-// GetBroker dial to kafka server and get the client to use.
-func GetBroker() *Broker {
+// Get dials to kafka server and get the client to use.
+func Get() *Broker {
 	// Set config to connect into kafka server.
-	brokerAddress := getBrokerAdress()
+	brokerAddress := getAdress()
 	conf := kafka.NewBrokerConf("CI/CD Broker")
 	conf.AllowTopicCreation = false
 	// Connect to kafka cluster.
@@ -130,8 +130,8 @@ func getVendorAgent(name string) (agent.Agent, error) {
 	return agt, err
 }
 
-// processMessage returns a json string as a response for a request.
-func processMessage(agt agent.Agent, msg []byte) ([]byte, error) {
+// fetch returns a json string as a response from a request.
+func fetch(agt agent.Agent, msg []byte) ([]byte, error) {
 	var req agent.Request
 	var res agent.Response
 	var err error
@@ -141,6 +141,12 @@ func processMessage(agt agent.Agent, msg []byte) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+
+	err = req.IsValid()
+	if err != nil {
+		return []byte{}, err
+	}
+
 	// Execute the action, and get an agent.Response
 	switch req.Action {
 	case "create":
@@ -151,6 +157,9 @@ func processMessage(agt agent.Agent, msg []byte) ([]byte, error) {
 
 	case "list":
 		res, err = agt.List(), nil
+
+	case "update":
+		res, err = agt.Update(req)
 
 	default:
 		msg := fmt.Sprintf("Action `%v` is not implemented in agent.", req.Action)
@@ -165,13 +174,12 @@ func processMessage(agt agent.Agent, msg []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	log.Printf("%s", response)
 	return response, err
 }
 
-// RunConsumers read messages from kafka in all ci/cd vendors topics and process
+// Run read messages from kafka in all ci/cd vendors topics and process
 // them.
-func (broker *Broker) RunConsumers() {
+func (broker *Broker) Run() {
 	var wg sync.WaitGroup
 	// Create a consumer in each vendor supported.
 	for _, vendor := range config.Vendors {
@@ -235,7 +243,7 @@ func (broker *Broker) RunConsumers() {
 				log.Printf("A message in topic `%v` was read.", inTopic)
 
 				// Build the msg and sending the action request to the proper client.
-				resp, err := processMessage(agt, msg.Value)
+				resp, err := fetch(agt, msg.Value)
 				if err != nil {
 					// Logging the error, but keep listening the topic.
 					log.Printf("Warning: %v", err)

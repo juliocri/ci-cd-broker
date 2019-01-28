@@ -6,7 +6,7 @@ import (
 
 func main() {
 	// Getting the broker.
-	b := broker.GetBroker()
-	// Start launching up all kafka consumers.
-	b.RunConsumers()
+	b := broker.Get()
+	// Launching all kafka consumers.
+	b.Run()
 }
