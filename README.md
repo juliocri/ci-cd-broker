@@ -29,6 +29,7 @@ Below are some methods implemented, write a message with the structure defined:
 ### Create a project
 ```json
 {
+  "id":uuid,
   "action":"create",
   "body":{
     "name": string,
@@ -40,6 +41,7 @@ Below are some methods implemented, write a message with the structure defined:
 ### Update project
 ```json
 {
+  "id":uuid,
   "action":"update",
   "body":{
     "name": string,
@@ -51,6 +53,7 @@ Below are some methods implemented, write a message with the structure defined:
 ### Delete project
 ```json
 {
+  "id": uuid,
   "action":"delete",
   "body":{
     "name": string
@@ -61,9 +64,13 @@ Below are some methods implemented, write a message with the structure defined:
 ### List projects
 ```json
 {
+  "id": uuid,
   "action": "list"
 }
 ```
+
+NOTE: all request must to sent a id with a valid uuid formatting, this id is
+required to match a response and identify the response to a related request.
 
 To see all messages produced as a response use next command:
 

@@ -11,12 +11,14 @@ type Config struct {
 
 // Request defintion of request messages.
 type Request struct {
+	ID     string                 `json:"id"` // A uuid to identify the message.
 	Action string                 `json:"action"`
 	Body   map[string]interface{} `json:"body"`
 }
 
 // Response defintion of response messages.
 type Response struct {
+	ID     string                 `json:"id"`// A uuid received from a request.
 	Status int                    `json:"status"`
 	Body   map[string]interface{} `json:"body"`
 }
