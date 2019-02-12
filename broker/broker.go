@@ -11,6 +11,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/optiopay/kafka"
+	"github.com/optiopay/kafka/proto"
 	"github.intel.com/kubernetes/ci-cd-broker/agent"
 )
 
@@ -79,7 +80,7 @@ func getAdress() []string {
 	flag.Parse()
 	// Assign ultimate values to the broker info
 	address := fmt.Sprintf("%v:%v", *kafkaAddress, *kafkaPort)
-	log.Printf("Broker address set successfuly at %v", address)
+	log.Printf("Broker address set successfuly at `%v`.", address)
 
 	return []string{address}
 }
@@ -93,10 +94,10 @@ func Get() *Broker {
 	// Connect to kafka cluster.
 	broker, err := kafka.Dial(brokerAddress, conf)
 	if err != nil {
-		log.Fatalf("Error: %s", err)
+		log.Fatalf("Error: %s.", err)
 	}
 	defer broker.Close()
-	log.Printf("CI/CD Broker connection stablished at %v", brokerAddress)
+	log.Printf("CI/CD Broker connection stablished at `%v`.", brokerAddress)
 
 	return &Broker{broker}
 }
@@ -136,15 +137,20 @@ func fetch(agt agent.Agent, msg []byte) ([]byte, error) {
 	var res agent.Response
 	var err error
 	var response []byte
+
+	// template response for error output.
+	tmp := `{"id":"%v","status":%v,"body":{"msg":"error","details":"%v"}}`
 	// Parse json request to agent.Request type
 	err = json.Unmarshal(msg, &req)
 	if err != nil {
-		return []byte{}, err
+		r := fmt.Sprintf(tmp, "invalid-message", agent.StatusError, err)
+		return []byte(r), err
 	}
 
 	err = req.IsValid()
 	if err != nil {
-		return []byte{}, err
+		r := fmt.Sprintf(tmp, req.ID, agent.StatusError, err)
+		return []byte(r), err
 	}
 
 	// Execute the action, and get an agent.Response
@@ -156,7 +162,7 @@ func fetch(agt agent.Agent, msg []byte) ([]byte, error) {
 		res, err = agt.Delete(req)
 
 	case "list":
-		res, err = agt.List(), nil
+		res, err = agt.List(req), nil
 
 	case "update":
 		res, err = agt.Update(req)
@@ -164,16 +170,18 @@ func fetch(agt agent.Agent, msg []byte) ([]byte, error) {
 	default:
 		msg := fmt.Sprintf("Action `%v` is not implemented in agent.", req.Action)
 		err = errors.New(msg)
-	}
-	if err != nil {
-		return []byte{}, err
-	}
-	// Parse the agent.Response into a json stream.
-	response, err = json.Marshal(res)
-	if err != nil {
-		return []byte{}, err
+		r := fmt.Sprintf(tmp, req.ID, agent.StatusError, err)
+		return []byte(r), err
 	}
 
+	// Try to Parse the agent.Response into a json stream.
+	response, errd := json.Marshal(res)
+	if errd != nil {
+		r := fmt.Sprintf(tmp, req.ID, agent.StatusError, errd)
+		return []byte(r), errd
+	}
+
+	// return the action response parsed to []byte.
 	return response, err
 }
 
@@ -206,12 +214,12 @@ func (broker *Broker) Run() {
 			conf := kafka.NewConsumerConf(inTopic, partition)
 			conf.StartOffset = kafka.StartOffsetNewest
 
-			log.Printf("Trying to create a consumer for topic `%v`", inTopic)
+			log.Printf("Trying to create a consumer for topic `%v`.", inTopic)
 			consumer, err := client.Consumer(conf)
 			if err != nil {
-				log.Fatalf("Error: %v", err)
+				log.Fatalf("Error: %v.", err)
 			}
-			log.Printf("Consumer created successfuly for topic `%v`", inTopic)
+			log.Printf("Consumer created successfuly for topic `%v`.", inTopic)
 
 			// Get the proper vendor client accordingly to the vendor name.
 			agt, err := getVendorAgent(vendor.Name)
@@ -225,39 +233,57 @@ func (broker *Broker) Run() {
 				log.Fatalf("%v", err)
 			}
 
-			log.Printf("Trying to create a producer for topic `%v`", outTopic)
+			log.Printf("Trying to create a producer for topic `%v`.", outTopic)
 			producer := client.Producer(kafka.NewProducerConf())
-			log.Printf("Producer created successfuly for topic `%v`", outTopic)
+			log.Printf("Producer created successfuly for topic `%v`.", outTopic)
 
-			//Till this point we have the machinery required to read-process-write.
+			// Till this point we have the machinery required to read-process-write.
 			// Infinite loop to listen the message queue in the proper topic.
 			log.Printf("Consumer for topic `%v` is listening for messages.", inTopic)
 			for {
 				msg, err := consumer.Consume()
 				if err != nil {
 					if err != kafka.ErrNoData {
-						log.Printf("Error: %v", err)
+						log.Printf("Error: %v.", err)
 					}
 					break
 				}
 				log.Printf("A message in topic `%v` was read.", inTopic)
 
-				// Build the msg and sending the action request to the proper client.
-				resp, err := fetch(agt, msg.Value)
-				if err != nil {
-					// Logging the error, but keep listening the topic.
-					log.Printf("Warning: %v", err)
-					continue
-				}
-				msg.Value = resp
+				// Async process of message.
+				wg.Add(1)
+				go func(a agent.Agent, m *proto.Message, p kafka.Producer) {
+					defer wg.Done()
+					// Build the msg and sending the action request to the proper client.
+					resp, err := fetch(a, m.Value)
+					m.Value = resp
+					// We get an error response from an action message.
+					if err != nil {
+						log.Printf("Action response error: %v.", err)
+						// If a error occurs we need to know it and write it in kafka.
+						// Logging the error and write an error response in the topic.
+						log.Printf("Trying to write an error message in topic `%v`.", outTopic)
+						if _, err := p.Produce(outTopic, partition, m); err != nil {
+							// Writting in kafka results in error.
+							// Logging the error, but keep listening the topic.
+							log.Printf("Warning: %v.", err)
+							return
+						}
+						log.Printf("Error Message in topic `%v` was written.", outTopic)
+						return
+					}
 
-				log.Printf("Trying to write a message in topic `%v`", outTopic)
-				if _, err := producer.Produce(outTopic, partition, msg); err != nil {
-					// Logging the error, but keep listening the topic.
-					log.Printf("Waring: %v", err)
-					continue
-				}
-				log.Printf("Message in topic `%v` was written.", outTopic)
+					// We get a successfully response from an action message.
+					log.Printf("Trying to write a success message in topic `%v`.", outTopic)
+					if _, err := p.Produce(outTopic, partition, m); err != nil {
+						// Writting in kafka results in error.
+						// Logging the error, but keep listening the topic.
+						log.Printf("Warning: %v.", err)
+						return
+					}
+					log.Printf("Success Message in topic `%v` was written.", outTopic)
+				}(agt, msg, producer)
+
 			}
 			// If getting this point then means the consumer ends for some reazon.
 			log.Printf("Consumer for topic `%v` has ended.", inTopic)

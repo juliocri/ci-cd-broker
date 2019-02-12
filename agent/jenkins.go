@@ -46,13 +46,19 @@ func (j *Jenkins) Create(req Request) (Response, error) {
 	// Decoding the request in an specific create request for jenkins.
 	err = mapstructure.Decode(req.Body, &request)
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
 	// Verifying if all mandatory fields are set in the request.
 	err = request.IsValid()
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
 
@@ -61,10 +67,14 @@ func (j *Jenkins) Create(req Request) (Response, error) {
 	configString := fmt.Sprintf(configs.XMLCreate, request.Description)
 	job, err := j.Client.CreateJob(configString, request.Name)
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
-	log.Printf("Project `%v` has been created.", job.GetName())
+	d := fmt.Sprintf("Project `%v` has been created.", job.GetName())
+	log.Printf(d)
 
 	// Invoking job in order to scan repo for first time.
 	log.Printf("Starting a quick self-scan in project `%v`.", job.GetName())
@@ -75,8 +85,8 @@ func (j *Jenkins) Create(req Request) (Response, error) {
 	// Finally a successfull response.
 	response = Response{
 		req.ID,
-		statusOk,
-		map[string]interface{}{"msg": "Success!"},
+		StatusOk,
+		map[string]interface{}{"msg": "success", "details": d},
 	}
 
 	return response, err
@@ -90,29 +100,45 @@ func (j *Jenkins) Delete(req Request) (Response, error) {
 	// Decoding request into a delete request structure for jenkins.
 	err = mapstructure.Decode(req.Body, &request)
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
 	// Verifying if all mandatory fields are set in the request.
 	err = request.IsValid()
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
 
-	log.Printf("Trying to delete project `%v`", request.Name)
+	log.Printf("Trying to delete project `%v`.", request.Name)
 	_, err = j.Client.DeleteJob(request.Name)
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err,
+		}}
 		return response, err
 	}
-	log.Printf("Project `%v` has been delete.", request.Name)
+
+	d := fmt.Sprintf("Project `%v` has been delete.", request.Name)
+	log.Printf(d)
+	response = Response{
+		req.ID,
+		StatusOk,
+		map[string]interface{}{"msg": "success", "details": d},
+	}
 
 	return response, err
 }
 
 // List return a list with all pipelines in jenkins.
-func (j *Jenkins) List() Response {
+func (j *Jenkins) List(req Request) Response {
 	var response Response
 	var list []map[string]interface{}
 
@@ -125,11 +151,13 @@ func (j *Jenkins) List() Response {
 		}
 		list = append(list, item)
 	}
-	log.Printf("List of projects retrieved.")
-
-	response.Status = statusOk
+	d := "List of projects retrieved."
+	log.Printf(d)
+	response.ID = req.ID
+	response.Status = StatusOk
 	response.Body = map[string]interface{}{
-		"msg":      "Success!",
+		"msg":      "success",
+		"details":  d,
 		"projects": list,
 	}
 
@@ -144,19 +172,28 @@ func (j *Jenkins) Update(req Request) (Response, error) {
 	// Decoding the request's body into a update request for jenkins.
 	err = mapstructure.Decode(req.Body, &request)
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
 	// Verifying if all mandatory fields are set in the update request.
 	err = request.IsValid()
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
 	// First step to update is get the job information.
 	job, err := j.Client.GetJob(request.Name)
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
 	// TODO update or add a new var for the config string to update, instead of
@@ -165,14 +202,18 @@ func (j *Jenkins) Update(req Request) (Response, error) {
 	configString := fmt.Sprintf(configs.XMLCreate, request.Description)
 	err = job.UpdateConfig(configString)
 	if err != nil {
-		response = Response{req.ID, statusError, map[string]interface{}{"msg": err}}
+		response = Response{req.ID, StatusError, map[string]interface{}{
+			"msg":     "error",
+			"details": err.Error(),
+		}}
 		return response, err
 	}
-	log.Printf("Project `%v` has been updated.", job.GetName())
 	// Update complete.
+	d := fmt.Sprintf("Project `%v` has been updated.", job.GetName())
+	log.Printf(d)
 	response.ID = req.ID
-	response.Status = statusOk
-	response.Body = map[string]interface{}{"msg": "Success!"}
+	response.Status = StatusOk
+	response.Body = map[string]interface{}{"msg": "success", "details": d}
 
 	return response, err
 }

@@ -29,8 +29,5 @@ func (r *Request) IsValid() error {
 		return errors.New(actErr)
 	}
 
-	if r.Body == nil {
-		return errors.New(bodErr)
-	}
 	return nil
 }
