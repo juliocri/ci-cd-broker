@@ -6,8 +6,8 @@ import (
 
 	"github.com/bndr/gojenkins"
 	"github.com/mitchellh/mapstructure"
-	"github.intel.com/kubernetes/ci-cd-broker/agent/jenkins"
-	"github.intel.com/kubernetes/ci-cd-broker/agent/jenkins/configs"
+	"gitlab.devtools.intel.com/kubernetes/ci-cd-broker/agent/jenkins"
+	"gitlab.devtools.intel.com/kubernetes/ci-cd-broker/agent/jenkins/configs"
 )
 
 // Jenkins implemenation of agent.
