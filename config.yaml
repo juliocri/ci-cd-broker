@@ -3,10 +3,10 @@ port: 9092
 vendors:
   - vendor:
     name: jenkins
-    host: http://onmunoz-box.zpn.intel.com
+    host: http://k8s-ci.intel.com
     port: 9090
     username: admin
-    password: adminadmin
+    password: Frig0Bar
   - vendor:
     name: travis
     host: www.command2

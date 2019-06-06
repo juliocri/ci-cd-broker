@@ -1,24 +1,26 @@
 # CI/CD Broker
 
 ## Requisites
-* Docker
-* Docker-compose
+* [Docker] (https://docs.docker.com/install/)
+* [Docker-compose] (https://docs.docker.com/compose/install/)
 
 ### For development and Testing
 * GoLang version 1.11+
-* Kafka
+* [Kafka] (https://kafka.apache.org/quickstart)
 
 ## Installation
 
-1. ``` $ git clone https://github.intel.com/kubernetes/ci-cd-broker```
+1. ``` $ git clone https://gitlab.devtools.intel.com/kubernetes/ci-cd-broker```
 1. ``` $ cd ci-cd-broker ```
-1. ``` $ docker-compose up ```
+1. ``` $ docker-compose build && docker-compose up ```
+
+NOTE: If it is installed behind a proxy please update the .env file with the corresponding proxy values.
 
 ## Testing Broker
 
 To create a message in the right topic:
 
-1. ``` $ kafka-console-producer --broker-list kafka:9092 --topic jenkins.requests```
+1. ``` $ kafka-console-producer --broker-list kafka:9092 --topic jenkins-requests```
 
 NOTE: add `kafka` hostname in `/etc/host` and point to the ip address of the
 machine where kafka-server is hosted. if running locally, add the next line to
@@ -74,7 +76,7 @@ required to match a response and identify the response to a related request.
 
 To see all messages produced as a response use next command:
 
-2. ``` $ kafka-console-consumer --bootstrap-server kafka:9092 --topic jenkins.responses --from-beginning```
+2. ``` $ kafka-console-consumer --bootstrap-server kafka:9092 --topic jenkins-responses --from-beginning```
 
 Optional you can also see the logs using:
 
