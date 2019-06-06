@@ -13,6 +13,7 @@ import (
 	"github.com/optiopay/kafka"
 	"github.com/optiopay/kafka/proto"
 	"gitlab.devtools.intel.com/kubernetes/ci-cd-broker/agent"
+)
 
 // List of CI/CD supported.
 var vendors = []string{"jenkins"}
@@ -207,8 +208,8 @@ func (broker *Broker) Run() {
 			// error the go rutine ends, we notify the sync group the routine is done.
 			defer wg.Done()
 			// Start creatin the consumer in the proper channel.
-			inTopic := fmt.Sprintf("%v.requests", vendor.Name)
-			outTopic := fmt.Sprintf("%v.responses", vendor.Name)
+			inTopic := fmt.Sprintf("%v-requests", vendor.Name)
+			outTopic := fmt.Sprintf("%v-responses", vendor.Name)
 			partition := int32(0)
 			conf := kafka.NewConsumerConf(inTopic, partition)
 			conf.StartOffset = kafka.StartOffsetNewest
