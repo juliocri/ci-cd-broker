@@ -3,6 +3,7 @@
 ## Requisites
 * [Docker] (https://docs.docker.com/install/)
 * [Docker-compose] (https://docs.docker.com/compose/install/)
+* A kubernetes cluster running (if you want to deploy on k8s)
 
 ### For development and Testing
 * GoLang version 1.11+
@@ -13,6 +14,11 @@
 1. ``` $ git clone https://gitlab.devtools.intel.com/kubernetes/ci-cd-broker```
 1. ``` $ cd ci-cd-broker ```
 1. ``` $ docker-compose build && docker-compose up ```
+
+## Installation for Kubernetes
+
+1. ``` $ docker build -t ci-cd-broker:devel Dockerfile . ```
+1. ``` $ kubectl apply -f deployment.yaml ```
 
 NOTE: If it is installed behind a proxy please update the .env file with the corresponding proxy values.
 
