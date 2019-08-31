@@ -1,0 +1,16 @@
+blueocean:1.0.0-b24 
+blueocean-autofavorite:latest
+blueocean-commons:1.0.0-b24 
+blueocean-config:1.0.0-b24 
+blueocean-dashboard:1.0.0-b24 
+blueocean-display-url:latest
+blueocean-github-pipeline:1.0.0-b24 
+blueocean-git-pipeline:1.0.0-b24 
+blueocean-i18n:1.0.0-b24 
+blueocean-events:1.0.0-b24 
+blueocean-jwt:1.0.0-b24 
+blueocean-personalization:1.0.0-b24 
+blueocean-pipeline-api-impl:1.0.0-b24 
+blueocean-rest:1.0.0-b24 
+blueocean-rest-impl:1.0.0-b24 
+blueocean-web:1.0.0-b24 

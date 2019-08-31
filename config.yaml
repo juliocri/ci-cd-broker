@@ -3,13 +3,7 @@ port: 9092
 vendors:
   - vendor:
     name: jenkins
-    host: http://k8s-ci.intel.com
-    port: 9090
+    host: http://jenkins
+    port: 8080
     username: admin
-    password: Frig0Bar
-  - vendor:
-    name: travis
-    host: www.command2
-    port: 9090
-    username: admin
-    password: 123
+    password: admin

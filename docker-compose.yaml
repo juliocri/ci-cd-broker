@@ -17,6 +17,13 @@ services:
       KAFKA_CREATE_TOPICS: "jenkins-requests:1:1,jenkins-responses:1:1"
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
 
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile-Jenkins
+    ports:
+      - "8080:8080"
+
   broker:
     build:
       context: .
@@ -28,10 +35,7 @@ services:
           go run main.go;
           sleep 5;
         done;"
-    environment:
-      http_proxy: ${HTTP_PROXY}
-      https_proxy: ${HTTPS_PROXY}
-      no_proxy: ${NO_PROXY}
     depends_on:
       - zookeeper
       - kafka
+      - jenkins
