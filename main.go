@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitlab.devtools.intel.com/kubernetes/ci-cd-broker/broker"
+	"github.com/juliocri/ci-cd-broker/broker"
 )
 
 func main() {

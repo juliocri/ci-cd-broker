@@ -11,7 +11,7 @@
 
 ## Installation
 
-1. ``` $ git clone https://gitlab.devtools.intel.com/kubernetes/ci-cd-broker```
+1. ``` $ git clone https://github.com/juliocri/ci-cd-broker```
 1. ``` $ cd ci-cd-broker ```
 1. ``` $ docker-compose build && docker-compose up ```
 

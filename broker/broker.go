@@ -12,7 +12,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/optiopay/kafka"
 	"github.com/optiopay/kafka/proto"
-	"gitlab.devtools.intel.com/kubernetes/ci-cd-broker/agent"
+	"github.com/juliocri/ci-cd-broker/agent"
 )
 
 // List of CI/CD supported.
