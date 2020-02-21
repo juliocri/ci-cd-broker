@@ -5,9 +5,9 @@ import (
 	"log"
 
 	"github.com/bndr/gojenkins"
-	"github.com/mitchellh/mapstructure"
 	"github.com/juliocri/ci-cd-broker/agent/jenkins"
 	"github.com/juliocri/ci-cd-broker/agent/jenkins/configs"
+	"github.com/mitchellh/mapstructure"
 )
 
 // Jenkins implemenation of agent.

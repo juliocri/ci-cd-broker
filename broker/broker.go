@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"github.com/ghodss/yaml"
+	"github.com/juliocri/ci-cd-broker/agent"
 	"github.com/optiopay/kafka"
 	"github.com/optiopay/kafka/proto"
-	"github.com/juliocri/ci-cd-broker/agent"
 )
 
 // List of CI/CD supported.
